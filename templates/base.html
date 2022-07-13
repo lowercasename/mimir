@@ -1,0 +1,15 @@
+{{define "base"}}
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <link rel="stylesheet" href="/static/css/style.css" />
+    </head>
+    <body>
+        <header id="header">
+            <strong>{{siteTitle}}</strong> {{template "header" .}}
+        </header>
+
+        <main id="content">{{template "content" .}}</main>
+    </body>
+</html>
+{{end}}

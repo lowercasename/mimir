@@ -1,0 +1,97 @@
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+        Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+}
+
+main#content {
+    max-width: 960px;
+}
+
+header#header {
+    padding: 0.5rem;
+    background-color: #efefef;
+    display: flex;
+    gap: 1rem;
+}
+
+.navigation {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+}
+
+.navigation__item {
+    display: inline;
+}
+
+.navigation__item:first-child {
+    padding-right: 0.5rem;
+}
+
+.navigation__item:not(:first-child) {
+    padding: 0 0.5rem;
+}
+
+.navigation__item:not(:last-child) {
+    border-right: 1px solid black;
+}
+
+.diff-navigation {
+    display: grid;
+    grid-template-columns: 60px 1fr 60px;
+    grid-template-areas: "left-arrows info right-arrows";
+    padding: 10px 5px;
+    background-color: #efefef;
+}
+
+.diff-navigation__info {
+    grid-area: info;
+    text-align: center;
+}
+
+.diff-navigation__arrows--left {
+    grid-area: left-arrows;
+}
+.diff-navigation__arrows--right {
+    text-align: right;
+    grid-area: right-arrows;
+}
+
+.diff-view {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+    gap: 20px;
+}
+
+.diff-view__column {
+    overflow-x: hidden;
+}
+
+.diff-view__code-container {
+    overflow-x: auto;
+}
+
+.diff-view code {
+    white-space: nowrap;
+}
+
+.editor textarea {
+    display: block;
+    width: 100%;
+    min-height: 500px;
+}
+
+form.form--rows {
+    width: 100%;
+    max-width: 320px;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}

@@ -1,0 +1,86 @@
+{{define "header"}}{{navigation .Page}}{{end}}
+
+{{define "content"}}
+<div class="diff-view">
+    <div class="diff-view__column">
+        <div class="diff-navigation">
+            {{if .Left.PrevTimestamp}}
+            <div class="diff-navigation__arrows diff-navigation__arrows--left">
+                <a
+                    href="/{{.Page.Title}}/diff?left={{.EarliestTimestamp}}&right={{.Right.Timestamp}}"
+                    ><<</a
+                >
+                <a
+                    href="/{{.Page.Title}}/diff?left={{.Left.PrevTimestamp}}&right={{.Right.Timestamp}}"
+                    ><</a
+                >
+            </div>
+            {{end}}
+            <div class="diff-navigation__info">
+                Version #{{.Left.DiffIndex}} of {{.NumVersions}} {{if (eq
+                .Left.DiffIndex .NumVersions)}}
+                <strong>(current)</strong>{{end}} {{if (eq .Left.DiffIndex 1)}}
+                <strong>(created)</strong>{{end}} - {{.Left.Date}}
+                <a href="/{{.Page.Title}}/edit?version={{.Left.Timestamp}}"
+                    >Restore this version</a
+                >
+            </div>
+            {{if .Left.NextTimestamp}}
+            <div class="diff-navigation__arrows diff-navigation__arrows--right">
+                <a
+                    href="/{{.Page.Title}}/diff?left={{.Left.NextTimestamp}}&right={{.Right.Timestamp}}"
+                    >></a
+                >
+                <a
+                    href="/{{.Page.Title}}/diff?left={{.LatestTimestamp}}&right={{.Right.Timestamp}}"
+                    >>></a
+                >
+            </div>
+            {{end}}
+        </div>
+        <div class="diff-view__code-container">
+            <code> {{.Left.DiffHtml}} </code>
+        </div>
+    </div>
+    <div class="diff-view__column">
+        <div class="diff-navigation">
+            {{if .Right.PrevTimestamp}}
+            <div class="diff-navigation__arrows diff-navigation__arrows--left">
+                <a
+                    href="/{{.Page.Title}}/diff?left={{.Left.Timestamp}}&right={{.EarliestTimestamp}}"
+                    ><<</a
+                >
+                <a
+                    href="/{{.Page.Title}}/diff?left={{.Left.Timestamp}}&right={{.Right.PrevTimestamp}}"
+                    ><</a
+                >
+            </div>
+            {{end}}
+            <div class="diff-navigation__info">
+                Version #{{.Right.DiffIndex}} of {{.NumVersions}} {{if (eq
+                .Right.DiffIndex .NumVersions)}}
+                <strong>(current)</strong>{{end}} {{if (eq .Right.DiffIndex 1)}}
+                <strong>(created)</strong>{{end}} - {{.Right.Date}}
+                <a href="/{{.Page.Title}}/edit?version={{.Right.Timestamp}}"
+                    >Restore this version</a
+                >
+            </div>
+            {{if .Right.NextTimestamp}}
+            <div class="diff-navigation__arrows diff-navigation__arrows--right">
+                <a
+                    href="/{{.Page.Title}}/diff?left={{.Left.Timestamp}}&right={{.Right.NextTimestamp}}"
+                    >></a
+                >
+                <a
+                    href="/{{.Page.Title}}/diff?left={{.Left.Timestamp}}&right={{.LatestTimestamp}}"
+                    >>></a
+                >
+            </div>
+            {{end}}
+        </div>
+        <div class="diff-view__code-container">
+            <code> {{.Right.DiffHtml}} </code>
+        </div>
+    </div>
+</div>
+{{end}}
