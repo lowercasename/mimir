@@ -96,6 +96,10 @@ services:
     secrets:
       - vault_mcp_token
       - vault_oauth_password
+    ports:
+      # Host loopback only: lets local agents (the Gardener) use the vault MCP
+      # with the bearer token, keeping their writes on the audited path.
+      - "127.0.0.1:8420:8420"
     volumes:
       - ./data/vault:/vault
       - ./data/audit:/data/audit
