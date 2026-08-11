@@ -88,7 +88,11 @@ Obsidian Sync ⇄ obsidian-sync ⇄ ./data/vault ⇄ vault-mcp ⇄ cloudflared �
   from cron (e.g. weekly).
 - **Monitoring**: set `MCP_HEARTBEAT_URL` in `.env` to a Healthchecks.io
   (or similar) ping URL and the MCP server pushes a heartbeat every minute —
-  the monitor alerts you when the pushes stop.
+  the monitor alerts you when the pushes stop. For the sync container, set
+  `SYNC_HEARTBEAT_URL` to a second check and cron
+  `scripts/ping-sync-health.sh` every minute: it pings while sync status is
+  fresh and hits `/fail` when it goes stale. Suggested check settings for
+  both: period 1 minute, grace 5 minutes.
 
 ## Credits
 
