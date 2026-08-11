@@ -1,0 +1,14 @@
+# Copy to cloudflared/config.yml and fill in your tunnel UUID.
+# Create the tunnel once with:
+#   cloudflared tunnel login
+#   cloudflared tunnel create mimir
+#   cloudflared tunnel route dns mimir mimir.idiot.sh
+# then move the generated <UUID>.json to secrets/cloudflared-credentials.json.
+
+tunnel: <TUNNEL_UUID>
+credentials-file: /run/secrets/cloudflared-credentials.json
+
+ingress:
+  - hostname: mimir.idiot.sh
+    service: http://vault-mcp:8420
+  - service: http_status:404

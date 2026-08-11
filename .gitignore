@@ -1,0 +1,18 @@
+# Secrets — never committed. Only the README describing them is tracked.
+secrets/*
+!secrets/README.md
+
+# Runtime data: the vault itself, sync status, audit log
+data/
+
+# Local config
+.env
+cloudflared/config.yml
+
+# Node
+node_modules/
+dashboard/dist/
+
+# Generated dashboard assets (built in Docker; app.js is source and stays)
+dashboard/public/styles.css
+dashboard/public/htmx.min.js

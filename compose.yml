@@ -1,0 +1,195 @@
+name: mimir
+
+# mimir — self-hosted Obsidian vault stack:
+#   obsidian-sync  keeps ./data/vault in sync with Obsidian Sync (bidirectional)
+#   vault-mcp      serves the vault over MCP (OAuth 2.0), reached via Cloudflare Tunnel
+#   cloudflared    outbound-only tunnel; the only path from the internet to vault-mcp
+#   dashboard      read-only status page, published on host loopback for tailscale serve
+#
+# Update policy: images are pinned (tag@digest) and updated deliberately via a
+# commit to this file. Keep this project OUT of watchtower's scope.
+
+services:
+  obsidian-sync:
+    image: ghcr.io/crosbyh/obsidian-headless-sync-docker:0.0.14@sha256:54ba2fa0e56511406b9719dd8836399974c029e237ef3ec5e83a32965bf4e15d
+    container_name: mimir-sync
+    labels:
+      - com.centurylinklabs.watchtower.enable=false
+    environment:
+      OBSIDIAN_AUTH_TOKEN_FILE: /run/secrets/obsidian_auth_token
+      VAULT_NAME: ${VAULT_NAME:?set VAULT_NAME in .env}
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      DEVICE_NAME: ${DEVICE_NAME:-mimir}
+      CONFLICT_STRATEGY: ${CONFLICT_STRATEGY:-merge}
+    secrets:
+      - obsidian_auth_token
+    volumes:
+      - ./data/vault:/vault
+      - ./data/status:/status
+    networks:
+      mimir:
+        ipv4_address: 172.28.100.10
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /run
+      # Workaround for https://github.com/crosbyh/obsidian-headless-sync-docker/issues/5
+      # (CLI resolves its config dir from the passwd home, not $HOME). Remove when fixed.
+      - /home/node:uid=${PUID:-1000},gid=${PGID:-1000},mode=0755
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETUID
+      - SETGID
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - KILL
+    # The image's healthcheck doubles as our status emitter: on every probe it
+    # writes machine-readable status to the shared /status volume, which the
+    # dashboard mounts read-only. Atomic write-then-rename, no log parsing.
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          if healthcheck; then
+          HOME=/run/obsidian-home su-exec ${PUID:-1000}:${PGID:-1000}
+          ob sync-status --path /vault --json > /status/.sync.tmp
+          && mv -f /status/.sync.tmp /status/sync.json;
+          date -u +%Y-%m-%dT%H:%M:%SZ > /status/healthy-at;
+          else
+          date -u +%Y-%m-%dT%H:%M:%SZ > /status/unhealthy-at; exit 1;
+          fi
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 60s
+
+  vault-mcp:
+    build:
+      context: ./images/vault-mcp
+      args:
+        OBSIDIAN_WEB_MCP_VERSION: cd88fdf06e36b7003abfe05f70dc658e315d9001
+    container_name: mimir-mcp
+    labels:
+      - com.centurylinklabs.watchtower.enable=false
+    environment:
+      VAULT_PATH: /vault
+      VAULT_MCP_HOST: 0.0.0.0 # container network only; never published on the host
+      VAULT_MCP_PORT: "8420"
+      VAULT_MCP_PUBLIC_URL: ${MCP_PUBLIC_URL:?set MCP_PUBLIC_URL in .env}
+      VAULT_MCP_ALLOWED_HOSTS: ${MCP_PUBLIC_HOST:?set MCP_PUBLIC_HOST in .env}
+      # Only the tunnel's fixed IP may set X-Forwarded-* headers.
+      VAULT_MCP_FORWARDED_ALLOW_IPS: 172.28.100.30
+      VAULT_MCP_TOKEN_FILE: /run/secrets/vault_mcp_token
+      VAULT_OAUTH_USERNAME: ${MCP_OAUTH_USERNAME:-obsidian}
+      VAULT_OAUTH_PASSWORD_FILE: /run/secrets/vault_oauth_password
+      VAULT_AUDIT_LOG_PATH: /data/audit/mcp-audit.jsonl
+      VAULT_DAILY_NOTES_FOLDER: ${MCP_DAILY_NOTES_FOLDER:-}
+      VAULT_DAILY_NOTES_FORMAT: ${MCP_DAILY_NOTES_FORMAT:-%Y-%m-%d}
+      # Optional Healthchecks.io / Uptime Kuma push URL (see .env.example)
+      VAULT_MCP_HEARTBEAT_URL: ${MCP_HEARTBEAT_URL:-}
+      VAULT_MCP_HEARTBEAT_INTERVAL: ${MCP_HEARTBEAT_INTERVAL:-60}
+    secrets:
+      - vault_mcp_token
+      - vault_oauth_password
+    volumes:
+      - ./data/vault:/vault
+      - ./data/audit:/data/audit
+    networks:
+      mimir:
+        ipv4_address: 172.28.100.20
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:uid=1000,gid=1000,mode=0700
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test:
+        - CMD
+        - python3
+        - -c
+        - import urllib.request;urllib.request.urlopen('http://127.0.0.1:8420/health',timeout=5)
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  cloudflared:
+    image: cloudflare/cloudflared:2026.7.3
+    container_name: mimir-tunnel
+    labels:
+      - com.centurylinklabs.watchtower.enable=false
+    command: tunnel --config /etc/cloudflared/config.yml --metrics 0.0.0.0:2000 run
+    volumes:
+      - ./cloudflared/config.yml:/etc/cloudflared/config.yml:ro
+    secrets:
+      - source: cloudflared_credentials
+        target: /run/secrets/cloudflared-credentials.json
+    networks:
+      mimir:
+        ipv4_address: 172.28.100.30
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    depends_on:
+      - vault-mcp
+
+  dashboard:
+    build: ./dashboard
+    container_name: mimir-dashboard
+    labels:
+      - com.centurylinklabs.watchtower.enable=false
+    environment:
+      # Tailnet login allowed to view the dashboard (see `tailscale status`).
+      # Unset = fail closed: every request is rejected.
+      DASHBOARD_TAILSCALE_USER: ${DASHBOARD_TAILSCALE_USER:-}
+      MCP_HEALTH_URL: http://vault-mcp:8420/health
+      TUNNEL_READY_URL: http://cloudflared:2000/ready
+      MCP_PUBLIC_URL: ${MCP_PUBLIC_URL:-}
+      OAUTH_USERNAME: ${MCP_OAUTH_USERNAME:-obsidian}
+      STATUS_DIR: /status
+      AUDIT_LOG: /data/audit/mcp-audit.jsonl
+    ports:
+      # Loopback only — reached exclusively through `tailscale serve`.
+      - "127.0.0.1:${DASHBOARD_PORT:-8787}:8787"
+    volumes:
+      - ./data/status:/status:ro
+      - ./data/audit:/data/audit:ro
+    networks:
+      mimir:
+        ipv4_address: 172.28.100.40
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+networks:
+  mimir:
+    driver: bridge
+    ipam:
+      config:
+        # Static addressing so VAULT_MCP_FORWARDED_ALLOW_IPS can name the tunnel
+        # exactly. Change the subnet here AND above if it collides on your host.
+        - subnet: 172.28.100.0/24
+
+secrets:
+  obsidian_auth_token:
+    file: ./secrets/obsidian_auth_token
+  vault_mcp_token:
+    file: ./secrets/vault_mcp_token
+  vault_oauth_password:
+    file: ./secrets/vault_oauth_password
+  cloudflared_credentials:
+    file: ./secrets/cloudflared-credentials.json

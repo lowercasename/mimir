@@ -1,0 +1,25 @@
+{
+  "name": "mimir-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.tsx",
+    "build": "tsc && npm run build:css && npm run build:vendor",
+    "build:css": "tailwindcss -i src/styles.css -o public/styles.css --minify",
+    "build:vendor": "cp node_modules/htmx.org/dist/htmx.min.js public/",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.14.0",
+    "hono": "^4.7.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.1.0",
+    "@types/node": "^22.0.0",
+    "htmx.org": "^2.0.4",
+    "tailwindcss": "^4.1.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+/* Obsidianish, light: default-theme Obsidian grounds, one purple accent. */
+@theme {
+  --color-obsidian: #fafafa;
+  --color-panel: #ffffff;
+  --color-edge: #e3e3e3;
+  --color-ink: #222222;
+  --color-faint: #8a8a8a;
+  --color-accent: #7852ee;
+  --color-danger: #b03540;
+}
+
+@source "./**/*.tsx";
+
+/* Poll countdown: the fill sweeps over one poll interval; each HTMX swap
+   mounts a fresh node, restarting the animation in lockstep with the poll. */
+.poll-track {
+  display: inline-block;
+  width: 3rem;
+  height: 3px;
+  border-radius: 9999px;
+  background: var(--color-edge);
+  overflow: hidden;
+}
+.poll-fill {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: var(--color-accent);
+  transform-origin: left;
+  transform: scaleX(0);
+  animation: poll-sweep 10s linear forwards;
+}
+@keyframes poll-sweep {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .poll-fill { animation: none; transform: scaleX(1); }
+}
