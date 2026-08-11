@@ -36,11 +36,12 @@ Obsidian Sync ⇄ obsidian-sync ⇄ ./data/vault ⇄ vault-mcp ⇄ cloudflared �
 - **One public hostname.** Only `vault-mcp` is internet-reachable, via an
   outbound-only Cloudflare Tunnel; OAuth 2.0 + a bearer token guard it (see
   upstream's security model). The dashboard exists only on the tailnet.
-- **Dashboard auth = Tailscale identity.** Published on host loopback only and
-  fronted by `tailscale serve`, which injects `Tailscale-User-Login`; the app
-  rejects any user other than `DASHBOARD_TAILSCALE_USER` and fails closed when
-  unset. This is sound only while the port stays loopback-bound and reached
-  through tailscale serve.
+- **The dashboard has no auth; its bind address is the trust boundary.**
+  Default `127.0.0.1` — front it with a reverse proxy or `tailscale serve` if
+  you need remote or identity-gated access. `DASHBOARD_BIND=0.0.0.0` serves it
+  open on the local network: fine on a trusted LAN, with the understanding
+  that anyone on it can see vault activity (note paths appear in the audit
+  table).
 
 ## Setup
 
@@ -64,14 +65,9 @@ Obsidian Sync ⇄ obsidian-sync ⇄ ./data/vault ⇄ vault-mcp ⇄ cloudflared �
 
 5. `docker compose up -d --build`, then watch `docker compose logs -f
    obsidian-sync` for the initial vault download.
-6. Publish the dashboard on the tailnet, on the machine running the stack:
-
-   ```sh
-   tailscale serve --bg --https=8443 http://127.0.0.1:8787
-   ```
-
-   (Pick a port that doesn't shadow anything else listening on the machine's
-   Tailscale IP — e.g. avoid 443 if a reverse proxy binds `0.0.0.0:443`.)
+6. Expose the dashboard: set `DASHBOARD_BIND=0.0.0.0` in `.env` for plain
+   LAN access, or leave it loopback-bound and front it with a reverse proxy
+   or `tailscale serve --bg --https=8443 http://127.0.0.1:8787`.
 
 7. Connect Claude: add `https://mimir.example.com` as a custom connector; the
    OAuth login is `VAULT_OAUTH_USERNAME` / the `vault_oauth_password` secret.

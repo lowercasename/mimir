@@ -6,7 +6,6 @@ import { AuditRows, Cards, Layout, Page } from "./views.js";
 
 const MCP_HEALTH_URL = process.env.MCP_HEALTH_URL ?? "http://vault-mcp:8420/health";
 const TUNNEL_READY_URL = process.env.TUNNEL_READY_URL ?? "http://cloudflared:2000/ready";
-const ALLOWED_USER = process.env.DASHBOARD_TAILSCALE_USER ?? "";
 const POLL_SECONDS = Math.max(2, Number(process.env.DASHBOARD_POLL_SECONDS) || 10);
 const MCP_PUBLIC_URL = process.env.MCP_PUBLIC_URL ?? "";
 const OAUTH_USERNAME = process.env.OAUTH_USERNAME ?? "obsidian";
@@ -22,22 +21,6 @@ app.use(async (c, next) => {
 
 app.get("/healthz", (c) => c.text("ok"));
 app.use("/assets/*", serveStatic({ root: "./public", rewriteRequestPath: (p) => p.replace(/^\/assets/, "") }));
-
-// Identity comes from the Tailscale-User-Login header that `tailscale serve`
-// injects. This is only trustworthy because the port is published on host
-// loopback and reached exclusively through tailscale serve — anything else on
-// the host's loopback could forge the header, so keep it that way. Fail closed
-// when no user is configured.
-app.use(async (c, next) => {
-  const user = c.req.header("tailscale-user-login") ?? "";
-  if (!ALLOWED_USER || user !== ALLOWED_USER) {
-    return c.text(
-      ALLOWED_USER ? "forbidden" : "forbidden: DASHBOARD_TAILSCALE_USER is not configured",
-      403,
-    );
-  }
-  await next();
-});
 
 app.get("/", async (c) => {
   const [sync, mcp, tunnel, audit] = await Promise.all([

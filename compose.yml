@@ -150,9 +150,6 @@ services:
     labels:
       - com.centurylinklabs.watchtower.enable=false
     environment:
-      # Tailnet login allowed to view the dashboard (see `tailscale status`).
-      # Unset = fail closed: every request is rejected.
-      DASHBOARD_TAILSCALE_USER: ${DASHBOARD_TAILSCALE_USER:-}
       MCP_HEALTH_URL: http://vault-mcp:8420/health
       TUNNEL_READY_URL: http://cloudflared:2000/ready
       MCP_PUBLIC_URL: ${MCP_PUBLIC_URL:-}
@@ -160,8 +157,9 @@ services:
       STATUS_DIR: /status
       AUDIT_LOG: /data/audit/mcp-audit.jsonl
     ports:
-      # Loopback only — reached exclusively through `tailscale serve`.
-      - "127.0.0.1:${DASHBOARD_PORT:-8787}:8787"
+      # The dashboard has no auth of its own — the bind IS the trust boundary.
+      # Default loopback (front it with a proxy); 0.0.0.0 for open LAN access.
+      - "${DASHBOARD_BIND:-127.0.0.1}:${DASHBOARD_PORT:-8787}:8787"
     volumes:
       - ./data/status:/status:ro
       - ./data/audit:/data/audit:ro
