@@ -11,7 +11,7 @@ name: mimir
 
 services:
   obsidian-sync:
-    image: ghcr.io/crosbyh/obsidian-headless-sync-docker:0.0.14@sha256:54ba2fa0e56511406b9719dd8836399974c029e237ef3ec5e83a32965bf4e15d
+    image: ghcr.io/crosbyh/obsidian-headless-sync-docker:sha-c54be20@sha256:c9a32fa39560defd02c26d02bb7ad79404f9faa546ac090fb8394e4e2e728bee
     container_name: mimir-sync
     labels:
       - com.centurylinklabs.watchtower.enable=false
@@ -27,6 +27,10 @@ services:
     volumes:
       - ./data/vault:/vault
       - ./data/status:/status
+      # CLI state (auth/device/sync db) under XDG_CONFIG_HOME=/data/config.
+      # A volume, not tmpfs: the sync device identity survives recreates, so
+      # we stop piling up devices in the Obsidian Sync account.
+      - sync-state:/data
     networks:
       mimir:
         ipv4_address: 172.28.100.10
@@ -34,9 +38,6 @@ services:
     read_only: true
     tmpfs:
       - /run
-      # Workaround for https://github.com/crosbyh/obsidian-headless-sync-docker/issues/5
-      # (CLI resolves its config dir from the passwd home, not $HOME). Remove when fixed.
-      - /home/node:uid=${PUID:-1000},gid=${PGID:-1000},mode=0755
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -56,7 +57,7 @@ services:
         - CMD-SHELL
         - >-
           if healthcheck; then
-          HOME=/run/obsidian-home su-exec ${PUID:-1000}:${PGID:-1000}
+          su-exec ${PUID:-1000}:${PGID:-1000}
           ob sync-status --path /vault --json > /status/.sync.tmp
           && mv -f /status/.sync.tmp /status/sync.json;
           date -u +%Y-%m-%dT%H:%M:%SZ > /status/healthy-at;
@@ -185,6 +186,10 @@ networks:
         # Static addressing so VAULT_MCP_FORWARDED_ALLOW_IPS can name the tunnel
         # exactly. Change the subnet here AND above if it collides on your host.
         - subnet: 172.28.100.0/24
+
+volumes:
+  # Sync device identity + CLI state. Deleting this re-registers a new device.
+  sync-state:
 
 secrets:
   obsidian_auth_token:

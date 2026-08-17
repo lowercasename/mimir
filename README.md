@@ -79,9 +79,10 @@ Obsidian Sync ⇄ obsidian-sync ⇄ ./data/vault ⇄ vault-mcp ⇄ cloudflared �
   ssh-only operation by design.
 - **Update images**: bump the pin in `compose.yml` / the Dockerfile `ARG`,
   commit, `docker compose up -d --build`.
-- **Device registrations**: sync state lives on a tmpfs, so each recreate of
-  `obsidian-sync` registers a fresh device in Obsidian Sync — prune the device
-  list occasionally.
+- **Device registrations**: sync state lives on the `sync-state` volume, so
+  recreating `obsidian-sync` re-uses the same registered device. Removing that
+  volume registers a new one — prune stale entries in Obsidian Sync's device
+  list if you ever do.
 - **Audit log**: `data/audit/mcp-audit.jsonl` records every vault mutation the
   MCP server performs (hashed token id, operation, path, checksums).
   `scripts/rotate-audit-log.sh` gzips and truncates it past 10 MiB — run it
@@ -98,10 +99,3 @@ Obsidian Sync ⇄ obsidian-sync ⇄ ./data/vault ⇄ vault-mcp ⇄ cloudflared �
 
 Dashboard icon: ["Headless" by Konkapp](https://thenounproject.com/icon/headless-5062774/)
 (Noun Project), modified to smile.
-
-## Known upstream issues
-
-- `obsidian-headless-sync-docker` crash-loops under `read_only: true` because
-  the CLI resolves its config dir from the passwd home rather than `$HOME`
-  ([#5](https://github.com/crosbyh/obsidian-headless-sync-docker/issues/5)).
-  Worked around here with a tmpfs at `/home/node`; drop it when fixed upstream.
