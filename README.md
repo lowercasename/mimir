@@ -26,7 +26,12 @@ Obsidian Sync ⇄ obsidian-sync ⇄ ./data/vault ⇄ vault-mcp ⇄ cloudflared �
   volume mounts (sync status + audit log) and two internal HTTP health probes.
   No Docker socket in any form — even a read-only socket exposes every
   container's env (and therefore secrets) via inspect. Config changes are done
-  over ssh.
+  over ssh. The optional action buttons don't change this: pressing one writes
+  an empty marker file to the dashboard's single writable mount, and a
+  host-side cron runner (`scripts/run-requests.sh`) — the only thing that
+  executes — matches the marker's *name* against a whitelist in `.env` and
+  never reads its contents. A fully compromised dashboard can request the
+  predefined jobs; it cannot run anything.
 - **No secrets in env.** Every secret is a file mount (`_FILE` convention), so
   nothing sensitive appears in `docker inspect`, compose config, or `.env`.
 - **Sync status without log parsing.** The sync container's healthcheck doubles
@@ -87,6 +92,11 @@ Obsidian Sync ⇄ obsidian-sync ⇄ ./data/vault ⇄ vault-mcp ⇄ cloudflared �
   MCP server performs (hashed token id, operation, path, checksums).
   `scripts/rotate-audit-log.sh` gzips and truncates it past 10 MiB — run it
   from cron (e.g. weekly).
+- **Action buttons**: opt-in via `DASHBOARD_ACTIONS` + `ACTION_*_CMD` in
+  `.env` (see `.env.example`), plus `scripts/run-requests.sh` on a
+  once-a-minute cron. Buttons show queued/running/last-result; per-action
+  timeout and cooldown are enforced by the runner, which logs to
+  `data/actions/<name>.log` (host-only, never mounted into the dashboard).
 - **Monitoring**: set `MCP_HEARTBEAT_URL` in `.env` to a Healthchecks.io
   (or similar) ping URL and the MCP server pushes a heartbeat every minute —
   the monitor alerts you when the pushes stop. For the sync container, set

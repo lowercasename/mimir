@@ -161,6 +161,11 @@ services:
       OAUTH_USERNAME: ${MCP_OAUTH_USERNAME:-obsidian}
       STATUS_DIR: /status
       AUDIT_LOG: /data/audit/mcp-audit.jsonl
+      # Action buttons (opt-in): names the dashboard may write request markers
+      # for. The markers are consumed by scripts/run-requests.sh on the host
+      # (cron), which alone executes — see that script's header.
+      DASHBOARD_ACTIONS: ${DASHBOARD_ACTIONS:-}
+      REQUESTS_DIR: /requests
     ports:
       # The dashboard has no auth of its own — the bind IS the trust boundary.
       # Default loopback (front it with a proxy); 0.0.0.0 for open LAN access.
@@ -168,6 +173,9 @@ services:
     volumes:
       - ./data/status:/status:ro
       - ./data/audit:/data/audit:ro
+      # The dashboard's ONLY writable mount: empty request-marker files for
+      # the host-side action runner. Nothing here is executable or secret.
+      - ./data/requests:/requests
     networks:
       mimir:
         ipv4_address: 172.28.100.40

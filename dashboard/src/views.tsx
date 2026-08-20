@@ -1,4 +1,5 @@
 import type { FC, PropsWithChildren } from "hono/jsx";
+import type { ActionStatus } from "./actions.js";
 import type { AuditEntry, HttpStatus, ServiceState, SyncStatus } from "./sources.js";
 
 export const Layout: FC<PropsWithChildren> = ({ children }) => (
@@ -121,6 +122,66 @@ export const AuditRows: FC<{ audit: AuditEntry[] }> = ({ audit }) =>
     </table>
   );
 
+// Polled fragment: the two action rows. Buttons POST a request marker; the
+// host-side runner does the actual work, so state here is read-back only.
+export const ActionRows: FC<{ actions: ActionStatus[] }> = ({ actions }) => (
+  <div class="divide-y divide-edge/50">
+    {actions.map((a) => (
+      <div class="flex items-center gap-3 py-2.5">
+        <div class="min-w-0 flex-1">
+          <div class="text-sm">{a.label}</div>
+          <div class="truncate text-xs text-faint">{a.desc}</div>
+        </div>
+        <span
+          class={`text-xs ${
+            a.phase === "running"
+              ? "text-accent"
+              : a.phase === "queued"
+                ? "text-ink"
+                : a.lastOk === false
+                  ? "text-danger"
+                  : "text-faint"
+          }`}
+        >
+          {a.phase === "idle" ? a.last : a.phase === "queued" ? "queued…" : "running…"}
+        </span>
+        <button
+          type="button"
+          class="rounded border border-edge px-2 py-1 text-xs text-faint hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-edge disabled:hover:text-faint"
+          hx-post={`/actions/${a.name}`}
+          hx-target="#actions-body"
+          hx-swap="innerHTML"
+          disabled={a.phase !== "idle"}
+        >
+          run
+        </button>
+      </div>
+    ))}
+  </div>
+);
+
+export const ActionsPanel: FC<{ actions: ActionStatus[]; pollSeconds: number }> = ({
+  actions,
+  pollSeconds,
+}) =>
+  actions.length === 0 ? null : (
+    <section class="rounded-lg border border-edge bg-panel">
+      <div class="flex items-center justify-between px-4 py-3 text-sm font-medium">
+        Actions
+        <span class="text-xs text-faint">requests · executed host-side</span>
+      </div>
+      <div
+        id="actions-body"
+        class="border-t border-edge px-4"
+        hx-get="/partials/actions"
+        hx-trigger={`every ${pollSeconds}s`}
+        hx-swap="innerHTML"
+      >
+        <ActionRows actions={actions} />
+      </div>
+    </section>
+  );
+
 export const ConnectPanel: FC<{ mcpUrl: string; oauthUser: string }> = ({
   mcpUrl,
   oauthUser,
@@ -157,14 +218,17 @@ export const Page: FC<{
   mcp: HttpStatus;
   tunnel: HttpStatus;
   audit: AuditEntry[];
+  actions: ActionStatus[];
   pollSeconds: number;
   mcpUrl: string;
   oauthUser: string;
-}> = ({ sync, mcp, tunnel, audit, pollSeconds, mcpUrl, oauthUser }) => (
+}> = ({ sync, mcp, tunnel, audit, actions, pollSeconds, mcpUrl, oauthUser }) => (
   <div class="space-y-4">
     <div hx-get="/partials/cards" hx-trigger={`every ${pollSeconds}s`} hx-swap="innerHTML">
       <Cards sync={sync} mcp={mcp} tunnel={tunnel} pollSeconds={pollSeconds} />
     </div>
+
+    <ActionsPanel actions={actions} pollSeconds={pollSeconds} />
 
     <ConnectPanel mcpUrl={mcpUrl} oauthUser={oauthUser} />
 
